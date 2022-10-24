@@ -1,4 +1,6 @@
 //! An in-memory implementation of Env.
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
 
 use crate::env::{path_to_str, path_to_string, Env, FileLock, Logger, RandomAccess};
 use crate::env_common::{micros, sleep_for};
@@ -9,7 +11,7 @@ use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, SgxMutex as Mutex};
 
 /// BufferBackedFile is a simple type implementing RandomAccess on a Vec<u8>.
 pub type BufferBackedFile = Vec<u8>;
@@ -350,16 +352,30 @@ impl Env for MemEnv {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(feature = "enclave_unit_test")]
+pub mod tests {
     use super::*;
     use crate::env;
+    use teaclave_test_utils::*;
+
+    pub fn run_tests() -> bool {
+        run_tests!(
+            test_mem_fs_memfile_read,
+            test_mem_fs_memfile_write,
+            test_mem_fs_memfile_readat,
+            test_mem_fs_open_read_write,
+            test_mem_fs_open_read_write_append_truncate,
+            test_mem_fs_metadata_operations,
+            test_mem_fs_children,
+            test_mem_fs_lock,
+            test_memenv_all,
+        )
+    }
 
     fn new_memfile(v: Vec<u8>) -> MemFile {
         MemFile(Arc::new(Mutex::new(v)))
     }
 
-    #[test]
     fn test_mem_fs_memfile_read() {
         let f = new_memfile(vec![1, 2, 3, 4, 5, 6, 7, 8]);
         let mut buf: [u8; 1] = [0];
@@ -371,7 +387,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn test_mem_fs_memfile_write() {
         let f = new_memfile(vec![]);
         let mut w1 = MemFileWriter::new(f.clone(), false);
@@ -387,7 +402,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn test_mem_fs_memfile_readat() {
         let f = new_memfile(vec![1, 2, 3, 4, 5]);
 
@@ -408,7 +422,6 @@ mod tests {
         assert_eq!(buf2, [1, 2, 3, 4, 5, 0]);
     }
 
-    #[test]
     fn test_mem_fs_open_read_write() {
         let fs = MemFS::new();
         let path = Path::new("/a/b/hello.txt");
@@ -436,7 +449,6 @@ mod tests {
         assert!(!fs.exists_(&Path::new("/non/existing/path")).unwrap());
     }
 
-    #[test]
     fn test_mem_fs_open_read_write_append_truncate() {
         let fs = MemFS::new();
         let path = Path::new("/a/b/hello.txt");
@@ -466,7 +478,6 @@ mod tests {
         assert!(!fs.exists_(&Path::new("/non/existing/path")).unwrap());
     }
 
-    #[test]
     fn test_mem_fs_metadata_operations() {
         let fs = MemFS::new();
         let path = Path::new("/a/b/hello.file");
@@ -509,7 +520,6 @@ mod tests {
     }
 
     #[cfg(unix)]
-    #[test]
     fn test_mem_fs_children() {
         let fs = MemFS::new();
         let (path1, path2, path3) = (
@@ -534,7 +544,6 @@ mod tests {
     }
 
     #[cfg(windows)]
-    #[test]
     fn test_mem_fs_children() {
         let fs = MemFS::new();
         let (path1, path2, path3) = (
@@ -558,7 +567,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn test_mem_fs_lock() {
         let fs = MemFS::new();
         let p = Path::new("/a/lock");
@@ -598,7 +606,6 @@ mod tests {
     }
 
     #[cfg(unix)]
-    #[test]
     fn test_memenv_all() {
         let me = MemEnv::new();
         let (p1, p2, p3) = (Path::new("/a/b"), Path::new("/a/c"), Path::new("/a/d"));
@@ -632,7 +639,6 @@ mod tests {
     }
 
     #[cfg(windows)]
-    #[test]
     fn test_memenv_all() {
         let me = MemEnv::new();
         let (p1, p2, p3) = (Path::new("\\a\\b"), Path::new("\\a\\c"), Path::new("\\a\\d"));

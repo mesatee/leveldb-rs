@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use crate::block::BlockContents;
 use crate::block_builder::BlockBuilder;
 use crate::blockhandle::BlockHandle;
@@ -201,7 +204,7 @@ impl<Dst: Write> TableBuilder<Dst> {
     fn write_block(&mut self, block: BlockContents, ctype: CompressionType) -> Result<BlockHandle> {
         let mut data = block;
         if ctype == CompressionType::CompressionSnappy {
-            data = snap::raw::Encoder::new().compress_vec(&data)?;
+            data = snap::Encoder::new().compress_vec(&data)?;
         }
 
         let mut digest = crc32::Digest::new(crc32::CASTAGNOLI);
@@ -268,13 +271,18 @@ impl<Dst: Write> TableBuilder<Dst> {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(feature = "enclave_unit_test")]
+pub mod tests {
     use super::*;
     use crate::blockhandle::BlockHandle;
     use crate::options;
+    use teaclave_test_utils::*;
 
-    #[test]
+    pub fn run_tests() -> bool {
+        should_panic!(test_bad_input());
+        run_tests!(test_footer, test_table_builder,)
+    }
+
     fn test_footer() {
         let f = Footer::new(BlockHandle::new(44, 4), BlockHandle::new(55, 5));
         let mut buf = [0; 48];
@@ -287,7 +295,6 @@ mod tests {
         assert_eq!(f2.index.size(), 5);
     }
 
-    #[test]
     fn test_table_builder() {
         let mut d = Vec::with_capacity(512);
         let mut opt = options::for_test();
@@ -323,8 +330,6 @@ mod tests {
         assert_eq!(223, actual);
     }
 
-    #[test]
-    #[should_panic]
     fn test_bad_input() {
         let mut d = Vec::with_capacity(512);
         let mut opt = options::for_test();

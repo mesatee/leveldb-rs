@@ -1,9 +1,12 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use crate::block::{Block, BlockIter};
 use crate::blockhandle::BlockHandle;
 use crate::cache;
 use crate::cmp::InternalKeyCmp;
 use crate::env::RandomAccess;
-use crate::error::{self, err, Result};
+use crate::error::Result;
 use crate::filter;
 use crate::filter_block::FilterBlockReader;
 use crate::key_types::InternalKey;
@@ -349,8 +352,8 @@ impl LdbIterator for TableIterator {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(feature = "enclave_unit_test")]
+pub mod tests {
     use crate::filter::BloomPolicy;
     use crate::key_types::LookupKey;
     use crate::options::{self, CompressionType};
@@ -359,6 +362,23 @@ mod tests {
     use crate::types::{current_key_val, LdbIterator};
 
     use super::*;
+    use teaclave_test_utils::*;
+
+    pub fn run_tests() -> bool {
+        run_tests!(
+            test_table_approximate_offset,
+            test_table_block_cache_use,
+            test_table_iterator_fwd_bwd,
+            test_table_iterator_filter,
+            test_table_iterator_state_behavior,
+            test_table_iterator_behavior_standard,
+            test_table_iterator_values,
+            test_table_iterator_seek,
+            test_table_get,
+            test_table_internal_keys,
+            test_table_reader_checksum,
+        )
+    }
 
     fn build_data() -> Vec<(&'static str, &'static str)> {
         vec![
@@ -436,7 +456,6 @@ mod tests {
         Rc::new(Box::new(src))
     }
 
-    #[test]
     fn test_table_approximate_offset() {
         let (src, size) = build_table(build_data());
         let mut opt = options::for_test();
@@ -455,7 +474,6 @@ mod tests {
         assert_eq!(137, table.approx_offset_of("{aa".as_bytes()));
     }
 
-    #[test]
     fn test_table_block_cache_use() {
         let (src, size) = build_table(build_data());
         let mut opt = options::for_test();
@@ -476,7 +494,6 @@ mod tests {
         assert_eq!(opt.block_cache.borrow().count(), 2);
     }
 
-    #[test]
     fn test_table_iterator_fwd_bwd() {
         let (src, size) = build_table(build_data());
         let data = build_data();
@@ -527,7 +544,6 @@ mod tests {
         assert_eq!(j, 6);
     }
 
-    #[test]
     fn test_table_iterator_filter() {
         let (src, size) = build_table(build_data());
 
@@ -546,7 +562,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn test_table_iterator_state_behavior() {
         let (src, size) = build_table(build_data());
 
@@ -575,7 +590,6 @@ mod tests {
         assert_eq!(first, iter.next());
     }
 
-    #[test]
     fn test_table_iterator_behavior_standard() {
         let mut data = build_data();
         data.truncate(4);
@@ -584,7 +598,6 @@ mod tests {
         test_iterator_properties(table.iter());
     }
 
-    #[test]
     fn test_table_iterator_values() {
         let (src, size) = build_table(build_data());
         let data = build_data();
@@ -620,7 +633,6 @@ mod tests {
         assert_eq!(i, 6);
     }
 
-    #[test]
     fn test_table_iterator_seek() {
         let (src, size) = build_table(build_data());
 
@@ -647,7 +659,6 @@ mod tests {
         assert!(iter.valid());
     }
 
-    #[test]
     fn test_table_get() {
         let (src, size) = build_table(build_data());
 
@@ -679,10 +690,7 @@ mod tests {
     // InternalFilterPolicy.
     // All the other tests use raw keys that don't have any internal structure; this is fine in
     // general, but here we want to see that the other infrastructure works too.
-    #[test]
     fn test_table_internal_keys() {
-        use crate::key_types::LookupKey;
-
         let (src, size) = build_internal_table();
 
         let table = Table::new(options::for_test(), wrap_buffer(src), size).unwrap();
@@ -715,7 +723,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn test_table_reader_checksum() {
         let (mut src, size) = build_table(build_data());
 

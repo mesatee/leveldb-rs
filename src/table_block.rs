@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use crate::block::Block;
 use crate::blockhandle::BlockHandle;
 use crate::env::RandomAccess;
@@ -74,7 +77,7 @@ pub fn read_table_block(
         match ctype {
             CompressionType::CompressionNone => Ok(Block::new(opt, buf)),
             CompressionType::CompressionSnappy => {
-                let decoded = snap::raw::Decoder::new().decompress_vec(buf.as_slice())?;
+                let decoded = snap::Decoder::new().decompress_vec(buf.as_slice())?;
                 Ok(Block::new(opt, decoded))
             }
         }

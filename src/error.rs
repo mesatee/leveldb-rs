@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use std::convert::From;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
@@ -5,7 +8,7 @@ use std::io;
 use std::result;
 use std::sync;
 
-use errno;
+use libc::c_int;
 use snap;
 
 /// StatusCode describes various failure modes of database operations.
@@ -25,7 +28,7 @@ pub enum StatusCode {
     NotSupported,
     PermissionDenied,
     Unknown,
-    Errno(errno::Errno),
+    Errno(c_int),
 }
 
 /// Status encapsulates a `StatusCode` and an error message. It can be displayed, and also
@@ -112,10 +115,16 @@ impl From<snap::Error> for Status {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{StatusCode, Status};
-    #[test]
+#[cfg(feature = "enclave_unit_test")]
+pub mod tests {
+    use super::{Status, StatusCode};
+    use std::prelude::v1::*;
+    use teaclave_test_utils::*;
+
+    pub fn run_tests() -> bool {
+        run_tests!(test_status_to_string,)
+    }
+
     fn test_status_to_string() {
         let s = Status::new(StatusCode::InvalidData, "Invalid data!");
         assert_eq!("InvalidData: Invalid data!", s.to_string());

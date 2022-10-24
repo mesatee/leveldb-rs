@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use crate::cmp::Cmp;
 use crate::types::{current_key_val, Direction, LdbIterator};
 
@@ -193,8 +196,8 @@ impl LdbIterator for MergingIter {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(feature = "enclave_unit_test")]
+pub mod tests {
     use super::*;
 
     use crate::cmp::DefaultCmp;
@@ -202,7 +205,20 @@ mod tests {
     use crate::test_util::{test_iterator_properties, LdbIteratorIter, TestLdbIter};
     use crate::types::{current_key_val, LdbIterator};
 
-    #[test]
+    use teaclave_test_utils::*;
+
+    pub fn run_tests() -> bool {
+        run_tests!(
+            test_merging_one,
+            test_merging_two,
+            test_merging_zero,
+            test_merging_behavior,
+            test_merging_forward_backward,
+            test_merging_real,
+            test_merging_seek_reset,
+        )
+    }
+
     fn test_merging_one() {
         let skm = tests::make_skipmap();
         let iter = skm.iter();
@@ -224,7 +240,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn test_merging_two() {
         let skm = tests::make_skipmap();
         let iter = skm.iter();
@@ -249,13 +264,11 @@ mod tests {
         }
     }
 
-    #[test]
     fn test_merging_zero() {
         let mut miter = MergingIter::new(Rc::new(Box::new(DefaultCmp)), vec![]);
         assert_eq!(0, LdbIteratorIter::wrap(&mut miter).count());
     }
 
-    #[test]
     fn test_merging_behavior() {
         let val = "def".as_bytes();
         let iter = TestLdbIter::new(vec![(b("aba"), val), (b("abc"), val)]);
@@ -267,7 +280,6 @@ mod tests {
         test_iterator_properties(miter);
     }
 
-    #[test]
     fn test_merging_forward_backward() {
         let val = "def".as_bytes();
         let iter = TestLdbIter::new(vec![(b("aba"), val), (b("abc"), val), (b("abe"), val)]);
@@ -313,7 +325,6 @@ mod tests {
         s.as_bytes()
     }
 
-    #[test]
     fn test_merging_real() {
         let val = "def".as_bytes();
 
@@ -333,7 +344,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn test_merging_seek_reset() {
         let val = "def".as_bytes();
 

@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use crate::cmp::{Cmp, MemtableKeyCmp};
 use crate::key_types::{build_memtable_key, parse_internal_key, parse_memtable_key, ValueType};
 use crate::key_types::{LookupKey, UserKey};
@@ -150,15 +153,30 @@ fn shift_left(s: &mut Vec<u8>, mid: usize) {
     s.truncate(newlen);
 }
 
-#[cfg(test)]
 #[allow(unused_variables)]
-mod tests {
+#[cfg(feature = "enclave_unit_test")]
+pub mod tests {
     use super::*;
     use crate::key_types::{parse_tag, truncate_to_userkey};
     use crate::options;
     use crate::test_util::{test_iterator_properties, LdbIteratorIter};
+    use teaclave_test_utils::*;
 
-    #[test]
+    pub fn run_tests() -> bool {
+        run_tests!(
+            test_shift_left,
+            test_memtable_parse_tag,
+            test_memtable_add,
+            test_memtable_add_get,
+            test_memtable_iterator_init,
+            test_memtable_iterator_seek,
+            test_memtable_iterator_fwd,
+            test_memtable_iterator_reverse,
+            test_memtable_parse_key,
+            test_memtable_iterator_behavior,
+        )
+    }
+
     fn test_shift_left() {
         let mut v = vec![1, 2, 3, 4, 5];
         shift_left(&mut v, 1);
@@ -185,13 +203,11 @@ mod tests {
         mt
     }
 
-    #[test]
     fn test_memtable_parse_tag() {
         let tag = (12345 << 8) | 1;
         assert_eq!(parse_tag(tag), (ValueType::TypeValue, 12345));
     }
 
-    #[test]
     fn test_memtable_add() {
         let mut mt = MemTable::new(options::for_test().cmp);
         mt.add(
@@ -211,7 +227,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn test_memtable_add_get() {
         let mt = get_memtable();
 
@@ -254,7 +269,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn test_memtable_iterator_init() {
         let mt = get_memtable();
         let mut iter = mt.iter();
@@ -270,7 +284,6 @@ mod tests {
         assert!(!iter.valid());
     }
 
-    #[test]
     fn test_memtable_iterator_seek() {
         let mt = get_memtable();
         let mut iter = mt.iter();
@@ -297,7 +310,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn test_memtable_iterator_fwd() {
         let mt = get_memtable();
         let mut iter = mt.iter();
@@ -319,7 +331,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn test_memtable_iterator_reverse() {
         let mt = get_memtable();
         let mut iter = mt.iter();
@@ -364,7 +375,6 @@ mod tests {
         assert!(!iter.valid());
     }
 
-    #[test]
     fn test_memtable_parse_key() {
         let key = vec![11, 1, 2, 3, 1, 123, 0, 0, 0, 0, 0, 0, 3, 4, 5, 6];
         let (keylen, keyoff, tag, vallen, valoff) = parse_memtable_key(&key);
@@ -375,7 +385,6 @@ mod tests {
         assert_eq!(&key[valoff..valoff + vallen], vec![4, 5, 6].as_slice());
     }
 
-    #[test]
     fn test_memtable_iterator_behavior() {
         let mut mt = MemTable::new(options::for_test().cmp);
         let entries = vec![

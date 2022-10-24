@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use crate::cmp::Cmp;
 use crate::key_types::{parse_internal_key, truncate_to_userkey, LookupKey, ValueType};
 use crate::merging_iter::MergingIter;
@@ -284,8 +287,8 @@ fn random_period() -> isize {
     rand::random::<isize>() % (2 * READ_BYTES_PERIOD)
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(feature = "enclave_unit_test")]
+pub mod tests {
     use super::*;
     use crate::db_impl::testutil::*;
     use crate::db_impl::DB;
@@ -296,8 +299,21 @@ mod tests {
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::iter::FromIterator;
+    use teaclave_test_utils::*;
 
-    #[test]
+    pub fn run_tests() -> bool {
+        run_tests!(
+            db_iter_basic_test,
+            db_iter_reset,
+            db_iter_test_fwd_backwd,
+            db_iter_test_seek,
+            db_iter_deleted_entry_not_returned,
+            db_iter_deleted_entry_not_returned_memtable,
+            db_iter_repeated_open_close,
+            db_iter_allow_empty_key,
+        )
+    }
+
     fn db_iter_basic_test() {
         let mut db = build_db().0;
         let mut iter = db.new_iter().unwrap();
@@ -316,7 +332,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn db_iter_reset() {
         let mut db = build_db().0;
         let mut iter = db.new_iter().unwrap();
@@ -329,7 +344,6 @@ mod tests {
         assert!(iter.valid());
     }
 
-    #[test]
     fn db_iter_test_fwd_backwd() {
         let mut db = build_db().0;
         let mut iter = db.new_iter().unwrap();
@@ -380,7 +394,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn db_iter_test_seek() {
         let mut db = build_db().0;
         let mut iter = db.new_iter().unwrap();
@@ -412,7 +425,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn db_iter_deleted_entry_not_returned() {
         let mut db = build_db().0;
         let mut iter = db.new_iter().unwrap();
@@ -423,7 +435,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn db_iter_deleted_entry_not_returned_memtable() {
         let mut db = build_db().0;
 
@@ -438,7 +449,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn db_iter_repeated_open_close() {
         let opt;
         {
@@ -487,7 +497,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn db_iter_allow_empty_key() {
         let opt = options::for_test();
         let mut db = DB::open("db", opt).unwrap();

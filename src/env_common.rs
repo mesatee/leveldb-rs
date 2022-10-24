@@ -1,5 +1,10 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use std::thread;
 use std::time;
+#[cfg(feature = "mesalock_sgx")]
+use std::untrusted::time::SystemTimeEx;
 
 pub fn micros() -> u64 {
     loop {

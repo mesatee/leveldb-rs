@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use crate::block::Block;
 use crate::cache::Cache;
 use crate::cmp::{Cmp, DefaultCmp};
@@ -8,8 +11,9 @@ use crate::infolog::{self, Logger};
 use crate::mem_env::MemEnv;
 use crate::types::{share, Shared};
 
-use std::default::Default;
 use std::rc::Rc;
+
+use disk_env::DBPersistKey;
 
 const KB: usize = 1 << 10;
 const MB: usize = KB * KB;
@@ -55,11 +59,33 @@ pub struct Options {
     pub filter_policy: filter::BoxedFilterPolicy,
 }
 
-impl Default for Options {
-    fn default() -> Options {
+impl Options {
+    pub fn new_disk_db_with(key: DBPersistKey) -> Options {
         Options {
             cmp: Rc::new(Box::new(DefaultCmp)),
-            env: Rc::new(Box::new(disk_env::PosixDiskEnv::new())),
+            env: Rc::new(Box::new(disk_env::PosixDiskEnv::new_with(key))),
+            log: None,
+            create_if_missing: true,
+            error_if_exists: false,
+            paranoid_checks: false,
+            write_buffer_size: WRITE_BUFFER_SIZE,
+            max_open_files: 1 << 10,
+            max_file_size: 2 << 20,
+            // 2000 elements by default
+            block_cache: share(Cache::new(BLOCK_CACHE_CAPACITY / BLOCK_MAX_SIZE)),
+            block_size: BLOCK_MAX_SIZE,
+            block_restart_interval: 16,
+            reuse_logs: true,
+            reuse_manifest: true,
+            compression_type: CompressionType::CompressionNone,
+            filter_policy: Rc::new(Box::new(filter::BloomPolicy::new(DEFAULT_BITS_PER_KEY))),
+        }
+    }
+
+    pub fn new_mem_db() -> Options {
+        Options {
+            cmp: Rc::new(Box::new(DefaultCmp)),
+            env: Rc::new(Box::new(MemEnv::new())),
             log: None,
             create_if_missing: true,
             error_if_exists: false,
@@ -82,14 +108,11 @@ impl Default for Options {
 /// Returns Options that will cause a database to exist purely in-memory instead of being stored on
 /// disk. This is useful for testing or ephemeral databases.
 pub fn in_memory() -> Options {
-    let mut opt = Options::default();
-    opt.env = Rc::new(Box::new(MemEnv::new()));
-    opt
+    Options::new_mem_db()
 }
 
 pub fn for_test() -> Options {
-    let mut o = Options::default();
-    o.env = Rc::new(Box::new(MemEnv::new()));
+    let mut o = Options::new_mem_db();
     o.log = Some(share(infolog::stderr()));
     o
 }

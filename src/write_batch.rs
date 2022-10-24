@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use crate::integer_encoding::{FixedInt, VarInt, VarIntWriter};
 use crate::key_types::ValueType;
 use crate::memtable::MemTable;
@@ -143,12 +146,16 @@ impl<'a> Iterator for WriteBatchIter<'a> {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(feature = "enclave_unit_test")]
+pub mod tests {
     use super::*;
     use std::iter::Iterator;
+    use teaclave_test_utils::*;
 
-    #[test]
+    pub fn run_tests() -> bool {
+        run_tests!(test_write_batch,)
+    }
+
     fn test_write_batch() {
         let mut b = WriteBatch::new();
         let entries = vec![

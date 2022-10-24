@@ -21,11 +21,19 @@
 //! ```
 //!
 
+#![cfg_attr(feature = "mesalock_sgx", no_std)]
 #![allow(dead_code)]
 
+#[cfg(feature = "mesalock_sgx")]
+#[macro_use]
+extern crate sgx_tstd as std;
+
+extern crate protected_fs;
+extern crate sgx_libc as libc;
+extern crate sgx_trts;
+extern crate sgx_types;
+
 extern crate crc;
-extern crate errno;
-extern crate fs2;
 extern crate integer_encoding;
 extern crate rand;
 extern crate snap;
@@ -81,3 +89,42 @@ pub use options::{in_memory, CompressionType, Options};
 pub use skipmap::SkipMap;
 pub use types::LdbIterator;
 pub use write_batch::WriteBatch;
+
+#[cfg(feature = "enclave_unit_test")]
+pub mod tests {
+    use super::*;
+    use std::prelude::v1::*;
+    use teaclave_test_utils::check_all_passed;
+
+    pub fn run_tests() -> bool {
+        check_all_passed!(
+            block::tests::run_tests(),
+            block_builder::tests::run_tests(),
+            blockhandle::tests::run_tests(),
+            cache::tests::run_tests(),
+            cmp::tests::run_tests(),
+            db_impl::tests::run_tests(),
+            db_iter::tests::run_tests(),
+            disk_env::tests::run_tests(),
+            error::tests::run_tests(),
+            filter::tests::run_tests(),
+            filter_block::tests::run_tests(),
+            key_types::tests::run_tests(),
+            log::tests::run_tests(),
+            mem_env::tests::run_tests(),
+            memtable::tests::run_tests(),
+            merging_iter::tests::run_tests(),
+            skipmap::tests::run_tests(),
+            snapshot::tests::run_tests(),
+            table_builder::tests::run_tests(),
+            table_cache::tests::run_tests(),
+            test_util::tests::run_tests(),
+            table_reader::tests::run_tests(),
+            types::tests::run_tests(),
+            version::tests::run_tests(),
+            version_edit::tests::run_tests(),
+            version_set::tests::run_tests(),
+            write_batch::tests::run_tests(),
+        )
+    }
+}

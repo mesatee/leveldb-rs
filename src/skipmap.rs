@@ -1,3 +1,6 @@
+#[cfg(feature = "mesalock_sgx")]
+use std::prelude::v1::*;
+
 use crate::cmp::{Cmp, MemtableKeyCmp};
 use crate::rand::rngs::StdRng;
 use crate::rand::{RngCore, SeedableRng};
@@ -355,13 +358,32 @@ impl LdbIterator for SkipMapIter {
     }
 }
 
-#[cfg(test)]
+#[cfg(feature = "enclave_unit_test")]
 pub mod tests {
     use super::*;
     use crate::cmp::MemtableKeyCmp;
     use crate::options;
     use crate::test_util::{test_iterator_properties, LdbIteratorIter};
     use crate::types::current_key_val;
+
+    use teaclave_test_utils::*;
+
+    pub fn run_tests() -> bool {
+        should_panic!(test_no_dupes());
+        run_tests!(
+            test_insert,
+            test_contains,
+            test_find,
+            test_empty_skipmap_find_memtable_cmp,
+            test_skipmap_iterator_0,
+            test_skipmap_iterator_init,
+            test_skipmap_iterator,
+            test_skipmap_iterator_seek_valid,
+            test_skipmap_behavior,
+            test_skipmap_iterator_prev,
+            test_skipmap_iterator_concurrent_insert,
+        )
+    }
 
     pub fn make_skipmap() -> SkipMap {
         let mut skm = SkipMap::new(options::for_test().cmp);
@@ -377,15 +399,12 @@ pub mod tests {
         skm
     }
 
-    #[test]
     fn test_insert() {
         let skm = make_skipmap();
         assert_eq!(skm.len(), 26);
         skm.map.borrow().dbg_print();
     }
 
-    #[test]
-    #[should_panic]
     fn test_no_dupes() {
         let mut skm = make_skipmap();
         // this should panic
@@ -393,7 +412,6 @@ pub mod tests {
         skm.insert("abf".as_bytes().to_vec(), "def".as_bytes().to_vec());
     }
 
-    #[test]
     fn test_contains() {
         let skm = make_skipmap();
         assert!(skm.contains(&"aby".as_bytes().to_vec()));
@@ -405,7 +423,6 @@ pub mod tests {
         assert!(!skm.contains(&"456".as_bytes().to_vec()));
     }
 
-    #[test]
     fn test_find() {
         let skm = make_skipmap();
         assert_eq!(
@@ -472,7 +489,6 @@ pub mod tests {
         );
     }
 
-    #[test]
     fn test_empty_skipmap_find_memtable_cmp() {
         // Regression test: Make sure comparator isn't called with empty key.
         let cmp: Rc<Box<dyn Cmp>> = Rc::new(Box::new(MemtableKeyCmp(options::for_test().cmp)));
@@ -483,7 +499,6 @@ pub mod tests {
         assert!(!it.valid());
     }
 
-    #[test]
     fn test_skipmap_iterator_0() {
         let skm = SkipMap::new(options::for_test().cmp);
         let mut i = 0;
@@ -496,7 +511,6 @@ pub mod tests {
         assert!(!skm.iter().valid());
     }
 
-    #[test]
     fn test_skipmap_iterator_init() {
         let skm = make_skipmap();
         let mut iter = skm.iter();
@@ -513,7 +527,6 @@ pub mod tests {
         assert!(!iter.valid());
     }
 
-    #[test]
     fn test_skipmap_iterator() {
         let skm = make_skipmap();
         let mut i = 0;
@@ -526,7 +539,6 @@ pub mod tests {
         assert_eq!(i, 26);
     }
 
-    #[test]
     fn test_skipmap_iterator_seek_valid() {
         let skm = make_skipmap();
         let mut iter = skm.iter();
@@ -557,7 +569,6 @@ pub mod tests {
         assert_eq!(current_key_val(&iter), None);
     }
 
-    #[test]
     fn test_skipmap_behavior() {
         let mut skm = SkipMap::new(options::for_test().cmp);
         let keys = vec!["aba", "abb", "abc", "abd"];
@@ -567,7 +578,6 @@ pub mod tests {
         test_iterator_properties(skm.iter());
     }
 
-    #[test]
     fn test_skipmap_iterator_prev() {
         let skm = make_skipmap();
         let mut iter = skm.iter();
@@ -584,9 +594,7 @@ pub mod tests {
         );
     }
 
-    #[test]
     fn test_skipmap_iterator_concurrent_insert() {
-        time_test!();
         // Asserts that the map can be mutated while an iterator exists; this is intentional.
         let mut skm = make_skipmap();
         let mut iter = skm.iter();
